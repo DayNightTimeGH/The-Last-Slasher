@@ -181,6 +181,8 @@ let L=null,R=null;for(const c of T.ctrls){if(c.userData.hand==="left")L=c;else i
 if(!R)R=T.ctrls[1];if(!L)L=T.ctrls[0];
 let H=null;for(const h of T.hands){if(h.userData.hand==="right"&&h.joints&&h.joints["wrist"]&&h.joints["middle-finger-metacarpal"])H=h}
 const rs=[...sess.inputSources].find(q=>q.handedness==="right"),handMode=!!(H&&rs&&rs.hand);
+for(const c of T.ctrls){if(c.userData.fist)c.userData.fist.visible=!!c.userData.pad}
+for(const h of T.hands){if(!h.joints)continue;for(const k in h.joints){const j=h.joints[k];if(!j.userData.dot){j.userData.dot=new THREE.Mesh(T.jgeo,T.jmat);j.add(j.userData.dot)}j.userData.dot.visible=!T.arMode}}
 const want=handMode?T.rig:R;
 if(T.sx.parent!==want){want.add(T.sx);if(!handMode){T.sx.position.set(0,0,.03);T.sx.rotation.set(.3,0,0)}}
 if(T.hudp.parent!==L)L.add(T.hudp);
@@ -204,7 +206,7 @@ try{
 const sess=await navigator.xr.requestSession(mode,{optionalFeatures:["local-floor","bounded-floor","hand-tracking"]});
 T.r.xr.enabled=true;T.r.xr.setReferenceSpaceType("local-floor");await T.r.xr.setSession(sess);
 xrSaved={vr,mode3d};if(mode==="immersive-ar"){T.sc.background=null;T.sc.fog=null;T.env.forEach(o=>o.visible=false);T.arMode=true}xrOn=true;vr=true;mode3d=true;xrSpeed=0;xrPrevP=null;
-cancelAnimationFrame(rafId);T.rig.scale.setScalar(XS);T.cam.near=.05;T.cam.far=100;T.cam.updateProjectionMatrix();
+cancelAnimationFrame(rafId);T.rig.scale.setScalar(XS);T.cam.near=.01;T.cam.far=100;T.cam.updateProjectionMatrix();try{sess.updateRenderState({depthNear:.01,depthFar:100})}catch(e){}
 last=performance.now();T.r.setAnimationLoop(tick);
 sess.addEventListener("end",()=>{if(T.arMode){T.sc.background=T.bgc;T.sc.fog=T.fog0;T.env.forEach(o=>o.visible=true);T.arMode=false}xrOn=false;T.r.xr.enabled=false;T.r.setAnimationLoop(null);
 T.rig.scale.setScalar(1);T.rig.position.set(0,0,0);T.rig.rotation.set(0,0,0);T.cam.near=1;T.cam.far=900;T.cam.updateProjectionMatrix();
@@ -257,12 +259,13 @@ const pm=new THREE.Mesh(plane,sm(pt.idle));pm.scale.set(32,32,1);sc.add(pm);
 const vrs=new THREE.Group(),bm=c=>new THREE.MeshBasicMaterial({color:c,fog:false});
 const sBlade=new THREE.Mesh(new THREE.BoxGeometry(3,.7,26),bm(0xeeeef6));sBlade.position.set(0,0,-15);
 const sGuard=new THREE.Mesh(new THREE.BoxGeometry(8,1.2,1.6),bm(0xffff00));sGuard.position.set(0,0,-2.3);
-const sGrip=new THREE.Mesh(new THREE.BoxGeometry(1.8,1.8,5),bm(0x2a2a30));sGrip.position.set(0,0,1);
+const sGrip=new THREE.Mesh(new THREE.BoxGeometry(1.8,1.8,5),bm(0x8a5a2b));sGrip.position.set(0,0,1);
 const sHand=new THREE.Mesh(new THREE.BoxGeometry(3.6,3.6,3.6),bm(0xc0c0c0));sHand.position.set(0,0,1.4);
 vrs.add(sBlade,sGuard,sGrip,sHand);vrs.visible=false;cam.add(vrs);
 const sx=vrs.clone();sx.visible=false;sx.scale.setScalar(.7/XS);sx.rotation.x=.3;sx.position.set(0,0,.03);
+const mkFist=()=>{const g=new THREE.Group(),o=new THREE.Mesh(new THREE.BoxGeometry(.105,.105,.125),bm(0x000000)),f=new THREE.Mesh(new THREE.BoxGeometry(.09,.09,.11),bm(0xc0c0c0));g.add(o,f);g.position.set(0,0,.04);return g};
 const ctrls=[r.xr.getController(0),r.xr.getController(1)];
-ctrls.forEach(c=>{rig.add(c);c.addEventListener("connected",e=>{c.userData.hand=e.data.handedness});c.addEventListener("disconnected",()=>{c.userData.hand=null})});
+ctrls.forEach(c=>{rig.add(c);c.addEventListener("connected",e=>{c.userData.hand=e.data.handedness;c.userData.pad=!e.data.hand});c.userData.fist=mkFist();c.add(c.userData.fist);c.addEventListener("disconnected",()=>{c.userData.hand=null})});
 const hands=[r.xr.getHand(0),r.xr.getHand(1)];
 hands.forEach(h=>{rig.add(h);h.addEventListener("connected",e=>{h.userData.hand=e.data.hand?e.data.handedness:null});h.addEventListener("disconnected",()=>{h.userData.hand=null})});
 const hudt=new THREE.CanvasTexture(hc);hudt.minFilter=hudt.magFilter=THREE.NearestFilter;hudt.generateMipmaps=false;
@@ -279,7 +282,7 @@ const nc=document.createElement("canvas");nc.width=96;nc.height=16;const nx=nc.g
 const nTex=new THREE.CanvasTexture(nc);nTex.minFilter=nTex.magFilter=THREE.LinearFilter;nTex.generateMipmaps=false;
 const nm=new THREE.Mesh(plane,sm(nTex));nm.scale.set(36,6,1);sc.add(nm);
 return{m,t1,t2,b,f,nm,sh:mkSh()}};
-T={r,sc,cam,pl,pm,pt,psh,vrs,rig,ctrls,sx,hudp,hudt,env,vrw,hands,bgc:sc.background,fog0:sc.fog,fwd:new THREE.Vector3(0,0,-1),arMode:false,tv:new THREE.Vector3(),bg,bt,pa,pts,mkE,plane,dm:[],ht:null,em:[],gm:[],bx:new THREE.BoxGeometry(1,1,1),camX:null,camZ:0,yaw:0,pv:"S",lw:0,lh:0,visW:210,dist:150,dirty:0};
+T={r,sc,cam,pl,pm,pt,psh,vrs,rig,ctrls,sx,hudp,hudt,env,vrw,hands,jgeo:new THREE.BoxGeometry(.014,.014,.014),jmat:bm(0xdcdce6),bgc:sc.background,fog0:sc.fog,fwd:new THREE.Vector3(0,0,-1),arMode:false,tv:new THREE.Vector3(),bg,bt,pa,pts,mkE,plane,dm:[],ht:null,em:[],gm:[],bx:new THREE.BoxGeometry(1,1,1),camX:null,camZ:0,yaw:0,pv:"S",lw:0,lh:0,visW:210,dist:150,dirty:0};
 return true}catch(err){gl3=false;T=null;return false}}
 function drawHud(){hg.clearRect(0,0,112,40);hg.fillStyle="rgba(236,230,255,.25)";hg.fillRect(0,0,112,Math.ceil(maxHP/5)*20);for(let i=0;i<maxHP;i++)hg.drawImage(heartImg,(i<php?0:32)+6,8,20,19,(i%5)*21+4,Math.floor(i/5)*20,20,19)}
 function render3d(dt,now){const vrOn=vr&&shown;
