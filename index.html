@@ -681,13 +681,13 @@ showMap();rafId=requestAnimationFrame(tick);
 (function(){
 /* ===== ONLINE MULTIPLAYER (Firebase Realtime Database) ===== */
 /* Paste your Realtime Database URL below (Firebase console > Build > Realtime Database) */
-const MPC={apiKey:"AIzaSyA3BYA7NtBC9wbIZaPbKsE0bI3vA1xTRgQ",authDomain:"new-comland.firebaseapp.com",databaseURL:"https://the-last-slasher-default-rtdb.firebaseio.com",projectId:"new-comland",appId:"1:514248941757:web:751c975b44a495404e17d4"};
+const MPC={apiKey:"AIzaSyBih5Z5QjN7L_HsuG0SUJgS7m3GYKLaUOg",authDomain:"the-last-slasher.firebaseapp.com",databaseURL:"https://the-last-slasher-default-rtdb.firebaseio.com",projectId:"the-last-slasher",storageBucket:"the-last-slasher.firebasestorage.app",messagingSenderId:"69804290520",appId:"1:69804290520:web:fd99384e6343c39858c2ad"};
 const FBU="https://www.gstatic.com/firebasejs/10.12.2/firebase-",MAXP=10,$=i=>document.getElementById(i);
 const MP=window.MP={on:false};
 let db,uid,sid,mode,me,hue=0,G=new Map(),P={},lsn=[],curR=-1,pend={},lastHp=[],seenId=-1,fin=false,sendT=0,lastS="",oldDiff=1,monRef=null,roundT=0,chkT=0,sbT=0,wasMap=true,cmode="coop",lobT=0,fbp=null,pl0=performance.now();
 const esc=s=>String(s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";"),hsl=(h,l)=>"hsl("+h+",95%,"+(l||55)+"%)";
 function ld(s){return new Promise((r,j)=>{const e=document.createElement("script");e.src=s;e.onload=r;e.onerror=j;document.head.appendChild(e)})}
-function fb(){return fbp||(fbp=ld(FBU+"app-compat.js").then(()=>Promise.all([ld(FBU+"auth-compat.js"),ld(FBU+"database-compat.js")])).then(()=>{firebase.initializeApp(MPC);db=firebase.database();return firebase.auth().signInAnonymously()}).then(c=>{uid=c.user.uid}).catch(e=>{fbp=null;throw e}))}
+function fb(){return fbp||(fbp=ld(FBU+"app-compat.js").then(()=>Promise.all([ld(FBU+"auth-compat.js"),ld(FBU+"database-compat.js")])).then(()=>{const ap=firebase.initializeApp(MPC,"mp");db=ap.database();return ap.auth().signInAnonymously()}).then(c=>{uid=c.user.uid}).catch(e=>{fbp=null;throw e}))}
 /* ---------- UI ---------- */
 const m=document.createElement("div");m.id="mpm";
 m.innerHTML='<div class="mc"><div id="mp0"><h2>The Last Slasher</h2><button class="opt" id="mpS">Singleplayer</button><button class="opt" id="mpO">Online</button></div>'
