@@ -113,6 +113,13 @@ body.vr #joy2{display:block}
 #pad #joy{width:96px;height:96px;background:rgba(34,29,59,.5)}
 #joy2{bottom:96px;width:88px;height:88px;right:max(18px,env(safe-area-inset-right))}
 }
+#mpm{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:linear-gradient(#1b1636,#3a2a63);padding:16px;overflow:auto;touch-action:pan-y}
+#mpm[hidden]{display:none}.mc{width:100%;max-width:380px;display:flex;flex-direction:column;gap:10px;text-align:center}.mc>div{display:flex;flex-direction:column;gap:10px}.mc>div[hidden]{display:none}
+.mc h2{margin:0;color:var(--gold);font-size:28px}.mc p{margin:0;color:var(--dim);font-size:13px}.mc .r{display:flex;flex-direction:row;gap:8px}.mc .r>*{flex:1}
+.mc input,.mc select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;-webkit-user-select:text;user-select:text}
+#mpList{display:flex;flex-direction:column;gap:6px;max-height:34vh;overflow:auto;touch-action:pan-y}
+#mps{position:fixed;top:44px;right:8px;z-index:3;font:11px monospace;color:#fff;background:rgba(20,18,36,.65);border-radius:6px;padding:4px 6px;display:none;pointer-events:none}
+#mps i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
 </style></head><body>
 <div id="hud"><span>State <b id="st">idle</b> &nbsp; Frame <b id="fr">1/2</b></span><button id="gear" type="button">Settings</button></div>
 <div id="stage"><canvas id="c" width="256" height="144"></canvas><canvas id="c3"></canvas><canvas id="hc" width="112" height="60"></canvas><div id="xh"></div><div id="joy2"><div id="knob2"></div></div></div>
@@ -666,8 +673,116 @@ for(let i=0;i<WW;i+=32)g.drawImage(groundImg,0,0,32,H-GROUND,i,GROUND,32,H-GROUN
 g.fillStyle="rgba(0,0,0,.35)";g.beginPath();g.ellipse(Math.round(x),GROUND,10,2,0,0,7);g.fill();
 drawStains();drawLevel();drawHearts();for(const e of mons){if(e.hp>0||(bi<5&&e.dead>1900&&Math.floor(e.dead/100)%2)){const bob=Math.floor(performance.now()/500)%2,mx=Math.round(e.x);g.drawImage(e.hit>0?e.fl:e.img,mx-(e.w>>1),GROUND-e.h-bob);
 if(e.hp>0){const by=Math.max(GROUND-e.h-8,9);g.fillStyle="#1a0f2e";g.fillRect(mx-(e.bw>>1),by,e.bw,3);g.fillStyle="#ff4040";g.fillRect(mx-(e.bw>>1),by,Math.round(e.bw*e.hp/e.max),3);g.font="bold 6px monospace";g.textAlign="center";g.lineWidth=2;g.strokeStyle="#000";g.strokeText(e.name||"",mx,by-2);g.fillStyle="#fff";g.fillText(e.name||"",mx,by-2)}}}
-const df=defs[state];g.save();g.translate(Math.round(x),GROUND-Math.round(y));g.scale(face,1);
-if(state==="death"||!(inv>0&&Math.floor(inv/100)%2))g.drawImage(df.img,frame*FW,0,FW,FW,-16,-FW,FW,FW);g.restore();g.restore();
+if(window.MP&&MP.d2)MP.d2();const df=defs[state];g.save();g.translate(Math.round(x),GROUND-Math.round(y));g.scale(face,1);
+if(state==="death"||!(inv>0&&Math.floor(inv/100)%2))g.drawImage((window.MP&&MP.img?MP.img(df.img,state):df.img),frame*FW,0,FW,FW,-16,-FW,FW,FW);g.restore();g.restore();
 if(LV&&LV.n>10){g.fillStyle="rgba(150,40,20,.2)";g.fillRect(0,0,W,H)}drawBlood()}
 showMap();rafId=requestAnimationFrame(tick);
-</script></body></html>
+</script><script>
+(function(){
+/* ===== ONLINE MULTIPLAYER (Firebase Realtime Database) ===== */
+/* Paste your Realtime Database URL below (Firebase console > Build > Realtime Database) */
+const MPC={apiKey:"AIzaSyA3BYA7NtBC9wbIZaPbKsE0bI3vA1xTRgQ",authDomain:"new-comland.firebaseapp.com",databaseURL:"https://the-last-slasher-default-rtdb.firebaseio.com",projectId:"new-comland",appId:"1:514248941757:web:751c975b44a495404e17d4"};
+const FBU="https://www.gstatic.com/firebasejs/10.12.2/firebase-",MAXP=10,$=i=>document.getElementById(i);
+const MP=window.MP={on:false};
+let db,uid,sid,mode,me,hue=0,G=new Map(),P={},lsn=[],curR=-1,pend={},lastHp=[],seenId=-1,fin=false,sendT=0,lastS="",oldDiff=1,monRef=null,roundT=0,chkT=0,sbT=0,wasMap=true,cmode="coop",lobT=0,fbp=null,pl0=performance.now();
+const esc=s=>String(s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";"),hsl=(h,l)=>"hsl("+h+",95%,"+(l||55)+"%)";
+function ld(s){return new Promise((r,j)=>{const e=document.createElement("script");e.src=s;e.onload=r;e.onerror=j;document.head.appendChild(e)})}
+function fb(){return fbp||(fbp=ld(FBU+"app-compat.js").then(()=>Promise.all([ld(FBU+"auth-compat.js"),ld(FBU+"database-compat.js")])).then(()=>{firebase.initializeApp(MPC);db=firebase.database();return firebase.auth().signInAnonymously()}).then(c=>{uid=c.user.uid}).catch(e=>{fbp=null;throw e}))}
+/* ---------- UI ---------- */
+const m=document.createElement("div");m.id="mpm";
+m.innerHTML='<div class="mc"><div id="mp0"><h2>The Last Slasher</h2><button class="opt" id="mpS">Singleplayer</button><button class="opt" id="mpO">Online</button></div>'
++'<div id="mp1" hidden><h2>Online</h2><input id="mpN" maxlength="12" placeholder="Your name" autocomplete="off"><div class="r"><button class="opt sel" id="mpC">Co-op</button><button class="opt" id="mpP">PvP</button></div>'
++'<p id="mpD"></p><div class="r" id="mpLr"><select id="mpLv"></select></div><button class="opt" id="mpK">Create server</button><div id="mpList"></div><p id="mpSt"></p><button class="opt" id="mpB">Back</button></div></div>';
+document.body.appendChild(m);
+const sb0=document.createElement("div");sb0.id="mps";document.body.appendChild(sb0);
+const mpb=document.createElement("button");mpb.id="gear";mpb.type="button";mpb.textContent="Online";$("hud").appendChild(mpb);
+for(let n=1;n<=19;n++){const o=document.createElement("option");o.value=n;o.textContent=(n===10?"World 1 - BOSS":n===20?"":"World "+(n>10?2:1)+" - Level "+(n>10?n-10:n));$("mpLv").appendChild(o)}
+try{$("mpN").value=localStorage.getItem("ls_mpname")||""}catch(e){}
+const uname=()=>{let n=$("mpN").value.trim().slice(0,12)||"Slasher"+(100+Math.floor(Math.random()*900));try{localStorage.setItem("ls_mpname",n)}catch(e){}return n};
+const st=t=>{$("mpSt").textContent=t||""};
+function show(p){$("mp0").hidden=p!==0;$("mp1").hidden=p!==1;clearInterval(lobT);if(p===1){refresh();lobT=setInterval(refresh,4000)}}
+function openMenu(){wasMap=mapOpen;mapOpen=true;m.hidden=false;show(0)}
+function setMode(c){cmode=c;$("mpC").classList.toggle("sel",c==="coop");$("mpP").classList.toggle("sel",c==="pvp");$("mpLr").style.display=c==="coop"?"":"none";$("mpD").textContent=c==="coop"?"Co-op: play the real levels together. Enemies are shared. Up to 10 players.":"PvP: free-for-all arena. Slash other players, most kills wins. Up to 10 players."}
+setMode("coop");
+$("mpC").onclick=()=>setMode("coop");$("mpP").onclick=()=>setMode("pvp");
+$("mpS").onclick=()=>{m.hidden=true;mapOpen=wasMap};
+$("mpO").onclick=()=>{show(1);st("Connecting...")};
+$("mpB").onclick=()=>show(0);
+mpb.id="mpb";mpb.className="";mpb.setAttribute("style","font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px");
+mpb.onclick=()=>{if(MP.on)leave();else openMenu()};
+/* ---------- lobby ---------- */
+async function refresh(){try{await fb();const s=(await db.ref("servers").once("value")).val()||{},ids=Object.keys(s),pls=await Promise.all(ids.map(i=>db.ref("pl/"+i).once("value"))),L=$("mpList");L.innerHTML="";let any=0;
+ids.forEach((id,i)=>{const sv=s[id],n=pls[i].numChildren();if(!n&&Date.now()-(sv.ts||0)>20000){["servers","pl","hits","mon"].forEach(p=>db.ref(p+"/"+id).remove());return}
+any=1;const b=document.createElement("button");b.className="opt";b.disabled=n>=MAXP;b.textContent=sv.name+" | "+(sv.mode==="pvp"?"PvP":"Co-op")+" | "+n+"/"+MAXP;b.onclick=()=>join(id);L.appendChild(b)});
+st(any?"":"No servers yet. Create one!")}catch(e){st("Can't reach Firebase ("+(e.code||e.message||"error")+"). Check the setup steps.")}}
+$("mpK").onclick=async()=>{try{await fb();const nm=uname(),r=db.ref("servers").push();await r.set({name:nm+"'s "+(cmode==="pvp"?"PvP":"Co-op"),mode:cmode,ts:firebase.database.ServerValue.TIMESTAMP,state:{r:0,l:+$("mpLv").value||1}});join(r.key)}catch(e){st("Could not create: "+(e.code||e.message))}};
+/* ---------- join / leave ---------- */
+async function join(id){try{await fb();const sv=(await db.ref("servers/"+id).once("value")).val();if(!sv)return st("That server is gone.");
+const ps=(await db.ref("pl/"+id).once("value")).val()||{},ids=Object.keys(ps);if(ids.length>=MAXP)return st("Server is full (10/10).");
+const used=ids.map(k=>ps[k].c);hue=Math.floor(Math.random()*360);
+for(let i=0;i<60;i++){const t=Math.floor(Math.random()*360);if(used.every(u=>Math.min(Math.abs(u-t),360-Math.abs(u-t))>=24)){hue=t;break}}
+sid=id;mode=sv.mode;const nm=uname();
+me=db.ref("pl/"+id+"/"+uid);me.onDisconnect().remove();await me.set({n:nm,c:hue,k:0,x:60,y:0,z:0,f:1,s:"idle",hp:5,mh:5,d:0});
+clearInterval(lobT);m.hidden=true;MP.on=true;oldDiff=diff;diff=1;curR=-1;fin=false;pend={};lastHp=[];seenId=-1;
+mpb.textContent="Leave";$("lvm").style.display="none";sb0.style.display="block";
+const pr=db.ref("pl/"+id);on(pr,"child_added",up);on(pr,"child_changed",up);
+on(pr,"child_removed",s=>{const q=G.get(s.key);if(q)kill3(q);G.delete(s.key);delete P[s.key];sb()});
+if(mode==="pvp"){on(db.ref("hits/"+id+"/"+uid),"child_added",s=>{gotHit(s.val());s.ref.remove()});
+LV=null;LW=720;mons.length=0;drops.length=0;gibs.length=0;parts.length=0;stains.length=0;maxHP=5;mapOpen=false;$("wm").style.display="none";vmenu.open=false;setMusic("theme");audInit();respawn();toast("PvP arena: slash the others! Most kills wins",3200)}
+else on(db.ref("servers/"+id+"/state"),"value",s=>{const v=s.val();if(v&&v.r!==curR)newRound(v)})
+}catch(e){MP.on=false;st("Could not join: "+(e.code||e.message))}}
+function on(r,e,f){r.on(e,f);lsn.push([r,e,f])}
+function leave(){if(!MP.on)return;MP.on=false;lsn.forEach(a=>a[0].off(a[1],a[2]));lsn=[];if(monRef)monRef.off();monRef=null;
+for(const q of G.values())kill3(q);G.clear();P={};if(T)T.pm.material.color.set(0xffffff);
+const s0=sid;me.onDisconnect().cancel();me.remove().then(()=>db.ref("pl/"+s0).once("value")).then(s=>{if(!s.exists())["servers","pl","hits","mon"].forEach(p=>db.ref(p+"/"+s0).remove())});
+diff=oldDiff;sb0.style.display="none";$("lvm").style.display="";mpb.textContent="Online";LV=null;mons.length=0;LW=512;maxHP=5;php=5;resetPlayer();mapOpen=true;m.hidden=false;show(0);buildMap();$("wm").style.display="flex"}
+/* ---------- network events ---------- */
+function up(s){const v=s.val(),id=s.key;if(!v)return;P[id]=v;sb();if(id===uid)return;let q=G.get(id);
+if(!q){q={id,x:v.x,y:v.y,z:v.z,fr:0,t:0,ps:v.s,s:v.s,f:v.f||1};G.set(id,q)}
+q.n=v.n;q.c=v.c;q.hp=v.hp;q.mh=v.mh||5;q.tx=v.x;q.ty=v.y;q.tz=v.z;q.f=v.f||1;q.s=v.s}
+function newRound(v){curR=v.r;if(monRef)monRef.off();pend={};lastHp=[];seenId=-1;fin=false;roundT=performance.now();
+monRef=db.ref("mon/"+sid+"/"+curR);const h=s=>{pend[s.key]=s.val()};monRef.on("child_added",h);monRef.on("child_changed",h);
+me.update({d:0});mapOpen=false;startLevel(v.l)}
+function adv(){db.ref("servers/"+sid+"/state").transaction(s=>s&&s.r===curR?{r:s.r+1,l:s.l%19+1}:s)}
+function respawn(){fallPit=null;resetPlayer();php=maxHP;inv=1500;if(mode==="pvp")x=40+Math.random()*(LW-80);me.update({hp:php,mh:maxHP})}
+function gotHit(v){if(!v||state==="death"||inv>0||php<=0)return;php-=v.d;inv=1200;bz=pz;blood(x,GROUND-y-14,-v.r,12,100);x=Math.max(16,Math.min(LW-16,x+v.r*16));vy=120;sfx("hit",.85,1,110);
+if(php<=0){setState("death");blood(x,GROUND-14,-v.r,30,150);db.ref("pl/"+sid+"/"+v.f+"/k").transaction(c=>(c||0)+1);toast("Slain by "+((P[v.f]||{}).n||"someone"),1800)}}
+function sb(){sbT=1}
+function drawSb(){sbT=0;const a=Object.keys(P).map(i=>Object.assign({i},P[i]));if(mode==="pvp")a.sort((p,q)=>(q.k||0)-(p.k||0));
+sb0.innerHTML=a.map(p=>"<div><i style='background:"+hsl(p.c)+"'></i>"+esc(p.n)+(p.i===uid?" (you)":"")+" "+(mode==="pvp"?"K"+(p.k||0):"\u2665"+Math.max(0,p.i===uid?php:p.hp))+"</div>").join("")}
+/* ---------- colours / drawing ---------- */
+const TC={};function tint(h,s){const im=defs[s].img;if(!im.naturalWidth)return im;const k=h+s;let c=TC[k];if(!c||c.w0!==im.naturalWidth){c=document.createElement("canvas");c.width=im.naturalWidth;c.height=im.naturalHeight;const c2=c.getContext("2d");c2.drawImage(im,0,0);c2.globalCompositeOperation="source-atop";c2.globalAlpha=.6;c2.fillStyle=hsl(h);c2.fillRect(0,0,c.width,c.height);c.w0=c.width;TC[k]=c}return c}
+MP.img=(im,s)=>MP.on?tint(hue,s):im;
+MP.d2=function(){if(!MP.on)return;for(const q of G.values()){g.save();g.translate(Math.round(q.x),GROUND-Math.round(q.y));g.save();g.scale(q.f,1);g.drawImage(tint(q.c,q.s),q.fr*FW,0,FW,FW,-16,-FW,FW,FW);g.restore();
+g.font="bold 6px monospace";g.textAlign="center";g.lineWidth=2;g.strokeStyle="#000";g.strokeText(q.n,0,-FW);g.fillStyle=hsl(q.c,70);g.fillText(q.n,0,-FW);
+g.fillStyle="#1a0f2e";g.fillRect(-8,-FW+2,16,2);g.fillStyle="#ff4040";g.fillRect(-8,-FW+2,Math.round(16*Math.max(0,q.hp)/q.mh),2);g.restore()}};
+function mk3(q){const tex={};for(const k of["idle","move","jump","slash","death"]){const t=T.pt[k].clone();t.needsUpdate=true;tex[k]=t}
+const mm=new THREE.Mesh(T.plane,new THREE.MeshBasicMaterial({map:tex.idle,transparent:true,alphaTest:.5,side:THREE.DoubleSide,fog:false,color:new THREE.Color(hsl(q.c,66))}));mm.scale.set(32,32,1);T.sc.add(mm);
+const nc=document.createElement("canvas");nc.width=128;nc.height=20;const c2=nc.getContext("2d");c2.font="bold 14px monospace";c2.textAlign="center";c2.lineWidth=3;c2.strokeStyle="#000";c2.strokeText(q.n,64,14);c2.fillStyle=hsl(q.c,70);c2.fillText(q.n,64,14);
+const nm=new THREE.Mesh(T.plane,new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(nc),transparent:true,depthWrite:false,fog:false,side:THREE.DoubleSide}));nm.scale.set(40,6.25,1);T.sc.add(nm);q.r3={m:mm,nm,tex}}
+function kill3(q){if(q.r3&&T){T.sc.remove(q.r3.m);T.sc.remove(q.r3.nm);q.r3=null}}
+/* ---------- per-frame hooks ---------- */
+function anim(q,dt){if(q.s!==q.ps){q.ps=q.s;q.fr=0;q.t=0}const stp=1000/FPS[q.s],n=defs[q.s].n;q.t+=dt;while(q.t>=stp){q.t-=stp;q.fr++;if(q.fr>=n){if(q.s==="death"){q.fr=n-1;q.t=0;break}q.fr=q.s==="slash"?n-1:0}}}
+function pre(now){const dt=Math.min(now-pl0,100);pl0=now;const k=1-Math.exp(-dt/70),use3=!!(T&&shown),vrOn=vr&&shown;
+if(use3)T.pm.material.color.set(hsl(hue,66));
+for(const q of G.values()){q.x+=(q.tx-q.x)*k;q.y+=(q.ty-q.y)*k;q.z+=(q.tz-q.z)*k;anim(q,dt);
+if(use3){if(!q.r3)mk3(q);const r=q.r3,tx=r.tex[q.s]||r.tex.idle,ry=vrOn?-vyaw:0;r.m.visible=r.nm.visible=true;tx.offset.x=q.fr*32/tx.image.naturalWidth;r.m.material.map=tx;r.m.scale.x=32*q.f;r.m.position.set(q.x,q.y+16,q.z+3);r.m.rotation.y=ry;r.nm.position.set(q.x,q.y+40,q.z+3);r.nm.rotation.y=ry}
+else if(q.r3)q.r3.m.visible=q.r3.nm.visible=false}
+if(mode==="coop"&&LV)for(const i in pend){const e=mons[i],h=pend[i];if(e&&h<e.hp){e.hp=h;e.hit=150;if(i<lastHp.length)lastHp[i]=h;mon=e;bz=e.z;
+if(h<=0&&!e.dead){e.dead=2500;blood(e.x,GROUND-10,1,40,170);blood(e.x,GROUND-10,-1,24,120);gore(e.x,GROUND-12,1,10);gore(e.x,GROUND-12,-1,8);pool()}else blood(e.x,GROUND-10,1,12,100)}}}
+function post(now){
+if(now-sendT>90||state!==lastS){sendT=now;lastS=state;me.update({x:Math.round(x*10)/10,y:Math.round(y),z:Math.round(pz*10)/10,f:face,s:state,hp:php,mh:maxHP})}
+if(mode==="pvp"){if(state==="slash")for(const q of G.values()){if(q.hs===slashId||q.hp<=0||q.s==="death")continue;const mm={x:q.x,z:q.z,w:16,hw:7,h:30};
+if(reach(mm,q.x-x)&&y<28){q.hs=slashId;db.ref("hits/"+sid+"/"+q.id).push({f:uid,d:1,r:face});sfx("hit",.85,1,110);bz=q.z;blood(q.x,GROUND-10,face,16,110)}}}
+else if(LV){if(LV.id!==seenId){seenId=LV.id;lastHp=mons.map(e=>e.hp)}
+for(let i=0;i<mons.length;i++){const e=mons[i];if(lastHp[i]!==undefined&&e.hp<lastHp[i])db.ref("mon/"+sid+"/"+curR+"/"+i).transaction(v=>v==null||e.hp<v?Math.max(0,e.hp):undefined);lastHp[i]=e.hp}
+if(fin&&now-roundT>3000&&now-chkT>1000){chkT=now;const a=Object.keys(P),ds=a.map(i=>P[i].d||0).filter(Boolean);if(ds.length>=a.length||Date.now()-Math.min.apply(null,ds)>12000)adv()}}
+if(sbT)drawSb()}
+const tick0=tick;tick=function(now,fa){const on=MP.on&&!mapOpen;if(on)pre(now);else pl0=now;tick0(now,fa);if(on&&MP.on)post(now)};
+const cl0=completeLevel;completeLevel=function(){if(!MP.on)return cl0();if(fin||!LV)return;fin=true;toast("Finished! Waiting for the others...",3000);me.update({d:Date.now()})};
+const rl0=restartLevel;restartLevel=function(){if(!MP.on)return rl0();respawn()};
+const sm0=showMap;showMap=function(){if(MP.on)return;sm0()};
+openMenu();
+})();
+</script>
+</body></html>
